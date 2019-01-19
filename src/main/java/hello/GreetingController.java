@@ -90,7 +90,11 @@ public class GreetingController {
 
 		byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
 		ByteArrayInputStream baIS = new ByteArrayInputStream(imageBytes);
-		return getTextFromImage(baIS);
+		List<String> lines = getTextFromImage(baIS);
+		if(!lines.isEmpty()) {
+			return textVideoRepositoryManager.getVideosFromText(lines);
+		}
+		return null;
 	}
     
     private List<String> getTextFromImage(InputStream instream) 
@@ -139,14 +143,9 @@ public class GreetingController {
             				lines.add(linesArr.getJSONObject(k).getString("text"));
             			}
             		}
-            		if(!lines.isEmpty()) {
-            			return textVideoRepositoryManager.getVideosFromText(lines);
-            		}
+            		return lines;
             }
-            if (entity != null) 
-            {
-                System.out.println(EntityUtils.toString(entity));
-            }
+            
         }
         catch (Exception e)
         {
@@ -155,19 +154,19 @@ public class GreetingController {
         return textList;
     }
     
-    @PostMapping("/store")
-    public String storeImageAndText(@RequestParam("base64") String file, @RequestParam String url) {
-    	List<String> textList = new ArrayList<>();
-    	try {
-    	byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
-    	ByteArrayInputStream baIS=	new ByteArrayInputStream(imageBytes);
-    	textList = getTextFromImage(baIS);
-    	textVideoRepositoryManager.storeVideosAndText(textList, url);
-		System.out.println("stored successfully");
-		
-    	}catch(Exception e) {
-    		System.out.println(e);
-    	}
-    	return null;
-    }
+	@PostMapping("/store")
+	public String storeImageAndText(@RequestParam("base64") String file, @RequestParam String url) {
+		List<String> textList = new ArrayList<>();
+		try {
+			byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
+			ByteArrayInputStream baIS = new ByteArrayInputStream(imageBytes);
+			textList = getTextFromImage(baIS);
+			textVideoRepositoryManager.storeVideosAndText(textList, url);
+			System.out.println("stored successfully");
+
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+		return "Success";
+	}
 }
