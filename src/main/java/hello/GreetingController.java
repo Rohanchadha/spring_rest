@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.imageio.ImageIO;
@@ -18,6 +20,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +40,10 @@ public class GreetingController {
 
     private static final String template = "Hello, %s!";
     private final AtomicLong counter = new AtomicLong();
-
+    
+    @Autowired
+    TextVideoRepositoryManager textVideoRepositoryManager;
+    
     @RequestMapping("/greeting")
     public Greeting greeting(@RequestParam(value="name", defaultValue="hello") String name) {
         return new Greeting(counter.incrementAndGet(),
@@ -102,10 +108,11 @@ public class GreetingController {
     	return "redirect:/";
     }
     
-    private void getTextFromImage(InputStream instream) 
+    private List<String> getTextFromImage(InputStream instream) 
     {
         HttpClient httpclient = HttpClients.createDefault();
-
+        List<String> textList = new ArrayList<>();
+      
         try
         {
             URIBuilder builder = new URIBuilder("https://centralindia.api.cognitive.microsoft.com/vision/v1.0/recognizeText");
@@ -137,5 +144,22 @@ public class GreetingController {
         {
             System.out.println(e.getMessage());
         }
+        return textList;
+    }
+    
+    @PostMapping("/store")
+    public String storeImageAndText(@RequestParam("base64") String file, @RequestParam String url) {
+    	List<String> textList = new ArrayList<>();
+    	try {
+    	byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
+    	ByteArrayInputStream baIS=	new ByteArrayInputStream(imageBytes);
+    	textList = getTextFromImage(baIS);
+    	textVideoRepositoryManager.storeVideosAndText(textList, url);
+		System.out.println("stored successfully");
+		
+    	}catch(Exception e) {
+    		System.out.println(e);
+    	}
+    	return "redirect:/";
     }
 }
