@@ -15,11 +15,14 @@ import javax.imageio.ImageIO;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -37,12 +40,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @RestController
 public class GreetingController {
+	
+	@Autowired
+	TextVideoRepositoryManager textVideoRepositoryManager;
 
     private static final String template = "Hello, %s!";
     private final AtomicLong counter = new AtomicLong();
-    
-    @Autowired
-    TextVideoRepositoryManager textVideoRepositoryManager;
     
     @RequestMapping("/greeting")
     public Greeting greeting(@RequestParam(value="name", defaultValue="hello") String name) {
@@ -82,31 +85,13 @@ public class GreetingController {
     }
     
     @PostMapping("/")
-    public String handleFileUpload1(@RequestParam("base64") String file,
-    		RedirectAttributes redirectAttributes) {
-    	System.out.println("nikhil");
-    	//storageService.store(file);
-    	//redirectAttributes.addFlashAttribute("message",
-    	//		"You successfully uploaded " + file.getOriginalFilename() + "!");
-    	try {
-    	byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
-    	ByteArrayInputStream baIS=	new ByteArrayInputStream(imageBytes);
-    	getTextFromImage(baIS);
-    	BufferedImage img = ImageIO.read(baIS);
+    public List<String> handleFileUpload1(@RequestParam("base64") String file,
+			RedirectAttributes redirectAttributes) {
 
-    	
-    	
-    	// write the image to a file
-    	File outputfile = new File("/Users/300006784/Downloads/image.png");
-    	
-			ImageIO.write(img, "png", outputfile);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	System.out.println(file);
-    	return "redirect:/";
-    }
+		byte[] imageBytes = javax.xml.bind.DatatypeConverter.parseBase64Binary(file);
+		ByteArrayInputStream baIS = new ByteArrayInputStream(imageBytes);
+		return getTextFromImage(baIS);
+	}
     
     private List<String> getTextFromImage(InputStream instream) 
     {
@@ -134,7 +119,30 @@ public class GreetingController {
             HttpResponse response = httpclient.execute(request);
             System.out.println(response.getHeaders("Operation-Location")[0]);
             HttpEntity entity = response.getEntity();
+            URIBuilder builder1 = new URIBuilder(response.getHeaders("Operation-Location")[0].getValue());
 
+            //builder.setParameter("mode", "{string}");
+
+            URI uri1 = builder1.build();
+            HttpGet request1 = new HttpGet(uri1);
+            request1.setHeader("Content-Type", "application/json");
+            request1.setHeader("Ocp-Apim-Subscription-Key", "e8548287207f40a58f60970d370cf268");
+            List<String> lines = new ArrayList<>();
+            for(int i = 0; i < 3; i++) {
+            		Thread.sleep(5000);
+            		HttpResponse response1 = httpclient.execute(request1);
+            		String responseString = EntityUtils.toString(response1.getEntity(), "UTF-8");
+            		JSONObject jsonObj = new JSONObject(responseString);
+            		if(jsonObj.get("status").toString().equals("Succeeded")) {
+            			JSONArray linesArr = jsonObj.getJSONObject("recognitionResult").getJSONArray("lines");
+            			for(int k = 0; k < linesArr.length(); k++) {
+            				lines.add(linesArr.getJSONObject(k).getString("text"));
+            			}
+            		}
+            		if(!lines.isEmpty()) {
+            			return textVideoRepositoryManager.getVideosFromText(lines);
+            		}
+            }
             if (entity != null) 
             {
                 System.out.println(EntityUtils.toString(entity));
@@ -160,6 +168,6 @@ public class GreetingController {
     	}catch(Exception e) {
     		System.out.println(e);
     	}
-    	return "redirect:/";
+    	return null;
     }
 }
